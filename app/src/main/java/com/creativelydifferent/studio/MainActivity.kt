@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.speech.tts.TextToSpeech
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,6 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.runtime.DisposableEffect
+import java.util.Locale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -51,6 +55,21 @@ fun StudioScreen() {
     var apiKey by remember { mutableStateOf("") }
     var draft by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
+    var ttsReady by remember { mutableStateOf(false) }
+    DisposableEffect(context) {
+        val engine = TextToSpeech(context) { result ->
+            ttsReady = result == TextToSpeech.SUCCESS
+            if (result == TextToSpeech.SUCCESS) tts?.language = Locale.US
+        }
+        tts = engine
+        onDispose {
+            engine.stop()
+            engine.shutdown()
+            tts = null
+            ttsReady = false
+        }
+    }
     var status by remember { mutableStateOf("Gemini is optional. Add your API key to generate original concepts.") }
     val angles = listOf("Motivational", "Storytelling", "Poetic", "Educational", "Funny")
     val durations = listOf("15 seconds", "30 seconds", "60 seconds")
@@ -158,6 +177,22 @@ fun StudioScreen() {
                     Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("03  YOUR VIDEO BLUEPRINT", color = Accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         Text(draft, color = Bright, fontSize = 14.sp, lineHeight = 22.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = {
+                                val voiceover = extractVoiceover(draft)
+                                if (voiceover.isBlank()) {
+                                    Toast.makeText(context, "No voiceover section found", Toast.LENGTH_SHORT).show()
+                                } else if (ttsReady) {
+                                    tts?.speak(voiceover, TextToSpeech.QUEUE_FLUSH, null, "creatively_voiceover")
+                                } else {
+                                    Toast.makeText(context, "Voice engine is still starting", Toast.LENGTH_SHORT).show()
+                                }
+                            }) { Text("PLAY VOICEOVER", color = Accent) }
+                            OutlinedButton(onClick = {
+                                tts?.stop()
+                                Toast.makeText(context, "Voiceover stopped", Toast.LENGTH_SHORT).show()
+                            }) { Text("STOP", color = Accent) }
+                        }
                         OutlinedButton(onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("Video concept", draft))
@@ -207,13 +242,14 @@ Use clear section headings. Be original, cinematic, human, and specific. Do not 
         val body = JSONObject()
             .put("contents", org.json.JSONArray().put(JSONObject().put("parts", org.json.JSONArray().put(JSONObject().put("text", prompt)))))
             .put("generationConfig", JSONObject().put("temperature", 0.9).put("maxOutputTokens", 3000))
-        val connection = (URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey").openConnection() as HttpURLConnection)
+        val connection = (URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent").openConnection() as HttpURLConnection)
         try {
             connection.requestMethod = "POST"
             connection.connectTimeout = 20000
             connection.readTimeout = 60000
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            connection.setRequestProperty("x-goog-api-key", apiKey)
             connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val code = connection.responseCode
             val stream = if (code in 200..299) connection.inputStream else connection.errorStream
@@ -230,6 +266,16 @@ Use clear section headings. Be original, cinematic, human, and specific. Do not 
             connection.disconnect()
         }
     }
+
+private fun extractVoiceover(script: String): String {
+    val marker = "VOICEOVER"
+    val start = script.indexOf(marker, ignoreCase = true)
+    if (start < 0) return ""
+    val contentStart = script.indexOf('\n', start).let { if (it < 0) return "" else it + 1 }
+    val nextSection = Regex("\\n[A-Z][A-Z0-9 ()–-]{2,}\\n").find(script, contentStart)
+    return script.substring(contentStart, nextSection?.range?.first ?: script.length)
+        .trim().trim('“', '”', '"')
+}
 
 private fun makeDraft(topic: String, style: String, duration: String): String {
     val hook = when (style) {
