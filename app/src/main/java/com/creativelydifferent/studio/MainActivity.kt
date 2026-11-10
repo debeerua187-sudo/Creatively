@@ -3,6 +3,7 @@ package com.creativelydifferent.studio
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
@@ -29,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -54,6 +56,7 @@ fun StudioScreen() {
     var duration by remember { mutableStateOf("30 seconds") }
     var apiKey by remember { mutableStateOf("") }
     var draft by remember { mutableStateOf("") }
+    var savedProjects by remember { mutableStateOf(loadProjects(context)) }
     var busy by remember { mutableStateOf(false) }
     var tts by remember { mutableStateOf<TextToSpeech?>(null) }
     var ttsReady by remember { mutableStateOf(false) }
@@ -179,6 +182,20 @@ fun StudioScreen() {
                         Text(draft, color = Bright, fontSize = 14.sp, lineHeight = 22.sp)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = {
+                                savedProjects = saveProject(context, topic, angle, duration, draft)
+                                Toast.makeText(context, "Project saved on this device", Toast.LENGTH_SHORT).show()
+                            }) { Text("SAVE PROJECT", color = Accent) }
+                            OutlinedButton(onClick = {
+                                val share = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "CreativelyDifferent video blueprint")
+                                    putExtra(Intent.EXTRA_TEXT, draft)
+                                }
+                                context.startActivity(Intent.createChooser(share, "Share video blueprint"))
+                            }) { Text("SHARE", color = Accent) }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = {
                                 val voiceover = extractVoiceover(draft)
                                 if (voiceover.isBlank()) {
                                     Toast.makeText(context, "No voiceover section found", Toast.LENGTH_SHORT).show()
@@ -202,13 +219,36 @@ fun StudioScreen() {
                 }
             }
 
+            if (savedProjects.isNotEmpty()) {
+                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(22.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("04  SAVED PROJECTS", color = Accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        savedProjects.forEachIndexed { index, project ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(project.optString("topic"), color = Bright, fontWeight = FontWeight.SemiBold)
+                                    Text(project.optString("style") + " • " + project.optString("duration"), color = Muted, fontSize = 11.sp)
+                                }
+                                TextButton(onClick = {
+                                    topic = project.optString("topic")
+                                    angle = project.optString("style")
+                                    duration = project.optString("duration")
+                                    draft = project.optString("draft")
+                                    status = "Project loaded."
+                                }) { Text("OPEN", color = Accent) }
+                            }
+                        }
+                    }
+                }
+            }
+
             Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("THE CREATIVE STANDARD", color = Accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     Text("• Vertical-first 9:16 storytelling\\n• Strong opening hook\\n• Original narration and scene direction\\n• Clean visuals: no hashtag overlays\\n• Hashtags stay separate from the video", color = Muted, lineHeight = 23.sp)
                 }
             }
-            Text("Version 1.1 • Gemini creative foundation", color = Muted, fontSize = 11.sp)
+            Text("Version 1.2 • Project library and voiceover preview", color = Muted, fontSize = 11.sp)
         }
     }
 }
@@ -310,4 +350,31 @@ Write a short, human caption. Add hashtags separately in the caption field.
 
 EDIT NOTES
 9:16 • 1080 × 1920 • restrained transitions • clear voiceover • captions timed to speech • music below narration."""
+}
+
+
+private fun loadProjects(context: Context): List<JSONObject> {
+    return try {
+        val raw = context.getSharedPreferences("creatively_studio", Context.MODE_PRIVATE)
+            .getString("projects", "[]") ?: "[]"
+        val array = JSONArray(raw)
+        (0 until array.length()).mapNotNull { array.optJSONObject(it) }
+    } catch (_: Exception) { emptyList() }
+}
+
+private fun saveProject(context: Context, topic: String, style: String, duration: String, draft: String): List<JSONObject> {
+    val prefs = context.getSharedPreferences("creatively_studio", Context.MODE_PRIVATE)
+    val current = loadProjects(context).toMutableList()
+    val project = JSONObject()
+        .put("topic", topic)
+        .put("style", style)
+        .put("duration", duration)
+        .put("draft", draft)
+        .put("savedAt", System.currentTimeMillis())
+    current.add(0, project)
+    val limited = current.take(30)
+    val array = JSONArray()
+    limited.forEach { array.put(it) }
+    prefs.edit().putString("projects", array.toString()).apply()
+    return limited
 }
