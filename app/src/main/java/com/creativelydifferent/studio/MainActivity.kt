@@ -73,7 +73,7 @@ fun StudioScreen() {
             ttsReady = false
         }
     }
-    var status by remember { mutableStateOf("Gemini is optional. Add your API key to generate original concepts.") }
+    var status by remember { mutableStateOf("Free mode is ready. No account, subscription, or API key required.") }
     val angles = listOf("Motivational", "Storytelling", "Poetic", "Educational", "Funny")
     val durations = listOf("15 seconds", "30 seconds", "60 seconds")
 
@@ -133,7 +133,7 @@ fun StudioScreen() {
                                 status = "Add a topic first so the creative direction has something to work with."
                             } else if (apiKey.isBlank()) {
                                 draft = makeDraft(topic, angle, duration)
-                                status = "Starter concept created. Add a Gemini API key below for an original AI-written version."
+                                status = "Free offline concept created. No API key or subscription needed."
                             } else {
                                 busy = true
                                 status = "Gemini is developing your concept…"
@@ -161,16 +161,16 @@ fun StudioScreen() {
 
             Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(22.dp)) {
                 Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("02  GEMINI AI", color = Accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    Text("Connect your own Google AI Studio API key to generate tailored scripts and scene direction.", color = Muted, fontSize = 13.sp, lineHeight = 19.sp)
+                    Text("02  OPTIONAL CLOUD AI", color = Accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("The studio works without this. You can optionally add a free-tier Gemini key for more varied AI scripts. Never required; usage limits and provider terms apply.", color = Muted, fontSize = 13.sp, lineHeight = 19.sp)
                     OutlinedTextField(
                         value = apiKey, onValueChange = { apiKey = it },
-                        label = { Text("Gemini API key") },
+                        label = { Text("Optional Gemini API key") },
                         placeholder = { Text("Paste your key here") },
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true, modifier = Modifier.fillMaxWidth(), colors = fieldColors()
                     )
-                    Text("Your key is kept in memory only and is not saved by this app. For personal testing, use a restricted key and monitor its usage. A production release should use a secure backend.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+                    Text("Leave blank for completely offline creative planning. If supplied, your key stays in memory only. Free-tier availability is controlled by the provider and may change.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
                     Text(status, color = if (status.startsWith("Gemini request failed")) Color(0xFFFF9B9B) else Muted, fontSize = 12.sp)
                 }
             }
@@ -248,7 +248,7 @@ fun StudioScreen() {
                     Text("• Vertical-first 9:16 storytelling\\n• Strong opening hook\\n• Original narration and scene direction\\n• Clean visuals: no hashtag overlays\\n• Hashtags stay separate from the video", color = Muted, lineHeight = 23.sp)
                 }
             }
-            Text("Version 1.2 • Project library and voiceover preview", color = Muted, fontSize = 11.sp)
+            Text("Version 1.3 • Free offline-first studio", color = Muted, fontSize = 11.sp)
         }
     }
 }
@@ -318,63 +318,62 @@ private fun extractVoiceover(script: String): String {
 }
 
 private fun makeDraft(topic: String, style: String, duration: String): String {
+    val subject = topic.trim().trimEnd('.', '!', '?')
     val hook = when (style) {
-        "Storytelling" -> "Nobody tells you what happens after the moment everything changes."
-        "Poetic" -> "Some chapters end quietly. The person you become next does not."
-        "Educational" -> "Here's one thing about $topic that most people overlook."
-        "Funny" -> "I had a plan for $topic. Naturally, life had other ideas."
-        else -> "If you're facing $topic, stop scrolling for ten seconds."
+        "Storytelling" -> "There was a moment when $subject stopped being just an idea — it became real."
+        "Poetic" -> "Somewhere between who you were and who you're becoming, $subject found its meaning."
+        "Educational" -> "Most people misunderstand $subject. Here's the part worth remembering."
+        "Funny" -> "I thought I had $subject figured out. That was my first mistake."
+        else -> "This is your reminder: $subject doesn't get to decide how your story ends."
     }
-    return """FORMAT: $duration • 9:16 vertical
+    val voiceover = when (style) {
+        "Storytelling" -> "I remember when it first started. I thought I knew how the story would go. Then life changed the plan. What mattered wasn't having a perfect answer. It was choosing what to do next. And that choice changed everything."
+        "Poetic" -> "Not every change arrives like thunder. Sometimes it is a quiet decision, a breath you finally take, a small light left on in a dark room. Let $subject be part of the becoming, not the thing that keeps you standing still."
+        "Educational" -> "Start with the facts. Notice what is working, what is not, and what you can actually change. Small, consistent steps beat dramatic promises. Understand the process, make one useful decision, and build from there."
+        "Funny" -> "Step one: make a plan. Step two: feel confident about the plan. Step three: discover that absolutely nobody told reality about the plan. So take a breath, adjust, and pretend this was the strategy all along."
+        else -> "You don't need to have the whole road figured out. You need one honest reason to take the next step. Let the hard days teach you, not define you. Your story is still moving, and you still get a say in what happens next."
+    }
+    val shots = when (style) {
+        "Educational" -> listOf("Overhead detail shot introducing the subject", "Close-up of the key idea or action", "Demonstration in a clean, uncluttered frame", "Final direct-to-camera takeaway")
+        "Funny" -> listOf("Deadpan close-up before the reveal", "Quick cut to the unexpected problem", "Reaction shot with a deliberate pause", "Punchline delivered straight to camera")
+        "Poetic" -> listOf("Soft natural light across an empty space", "Slow detail shot with shallow depth of field", "Wide silhouette or landscape with negative space", "Hold the final image after the last words")
+        "Storytelling" -> listOf("Intimate close-up establishing the moment", "Moving shot that reveals the setting", "Three quick detail cuts that build tension", "Quiet wide shot that resolves the story")
+        else -> listOf("Strong close-up with direct eye contact", "Wide shot showing the world around the subject", "Progress detail: hands, footsteps, or meaningful object", "Confident final frame with room for the closing line")
+    }
+    val seconds = when (duration) { "15 seconds" -> 15; "60 seconds" -> 60; else -> 30 }
+    val sceneLines = shots.mapIndexed { index, shot ->
+        val from = index * seconds / 4
+        val to = (index + 1) * seconds / 4
+        "${index + 1}. ${from}s–${to}s: $shot. Use deliberate framing, controlled movement, and natural or motivated light."
+    }.joinToString("\\n")
+    return """FORMAT: $duration • vertical 9:16 • planned for 1080 × 1920
 
-HOOK (0–3 sec)
+HOOK (first 1–3 seconds)
 “$hook”
 
-STORY
-Bring the viewer into one specific, relatable moment connected to $topic. Use a close-up, a deliberate pause, and a visual detail that makes the feeling real.
+CREATIVE IDEA
+Build a specific, emotionally clear short video about $subject. Keep one central message and make every shot support it.
 
 VOICEOVER
-“Maybe the point isn't to have every answer today. Maybe it's to take the next honest step, even when nobody is watching. You are allowed to begin again — and this time, do it your way.”
+“$voiceover”
 
-SCENE DIRECTION
-1. Open on a cinematic close-up; make the first frame intriguing.
-2. Cut to a wider atmospheric shot that establishes the emotion.
-3. Use two or three purposeful detail shots; avoid generic filler.
-4. End on a memorable image and let the final line breathe.
+STORYBOARD / SHOT LIST
+$sceneLines
 
 ON-SCREEN TEXT
-Use only the hook and one short emphasis line. No hashtags on the video.
+Use the hook as the opening text and one short closing phrase: “Keep becoming.”
+No hashtags, usernames, or caption hashtags on the video.
 
-CAPTION
-Write a short, human caption. Add hashtags separately in the caption field.
+CAPTION (separate from video)
+$subject — one step, one choice, one moment at a time.
 
-EDIT NOTES
-9:16 • 1080 × 1920 • restrained transitions • clear voiceover • captions timed to speech • music below narration."""
+OPTIONAL HASHTAGS (caption only)
+#CreativelyDifferent #YourStory #KeepBecoming
+
+SOUND AND EDIT
+Use a restrained instrumental bed beneath narration. Cut on meaningful words, keep transitions simple, add a short fade at the end, and leave breathing room after the final line.
+
+PRODUCTION NOTE
+This is an offline creative blueprint. Add your own footage or images to turn the shot list into a finished video."""
 }
-
-
-private fun loadProjects(context: Context): List<JSONObject> {
-    return try {
-        val raw = context.getSharedPreferences("creatively_studio", Context.MODE_PRIVATE)
-            .getString("projects", "[]") ?: "[]"
-        val array = JSONArray(raw)
-        (0 until array.length()).mapNotNull { array.optJSONObject(it) }
-    } catch (_: Exception) { emptyList() }
-}
-
-private fun saveProject(context: Context, topic: String, style: String, duration: String, draft: String): List<JSONObject> {
-    val prefs = context.getSharedPreferences("creatively_studio", Context.MODE_PRIVATE)
-    val current = loadProjects(context).toMutableList()
-    val project = JSONObject()
-        .put("topic", topic)
-        .put("style", style)
-        .put("duration", duration)
-        .put("draft", draft)
-        .put("savedAt", System.currentTimeMillis())
-    current.add(0, project)
-    val limited = current.take(30)
-    val array = JSONArray()
-    limited.forEach { array.put(it) }
-    prefs.edit().putString("projects", array.toString()).apply()
-    return limited
 }
