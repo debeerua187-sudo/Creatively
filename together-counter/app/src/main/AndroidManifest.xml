@@ -4,7 +4,11 @@
         android:label="Together Counter">
         <activity
             android:name=".SettingsActivity"
-            android:exported="true" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
         <receiver
             android:name=".TogetherWidget"
             android:exported="true"
