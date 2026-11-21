@@ -1,0 +1,8 @@
+<resources>
+<style name="WidgetFontDefault" parent="@android:style/TextAppearance.Material"><item name="android:fontFamily">sans</item><item name="android:textSize">16sp</item></style>
+<style name="WidgetFontSerif" parent="@android:style/TextAppearance.Material"><item name="android:fontFamily">serif</item><item name="android:textSize">16sp</item></style>
+<style name="WidgetFontMono" parent="@android:style/TextAppearance.Material"><item name="android:fontFamily">monospace</item><item name="android:textSize">16sp</item></style>
+<style name="WidgetFontSans" parent="@android:style/TextAppearance.Material"><item name="android:fontFamily">sans-serif-light</item><item name="android:textSize">16sp</item></style>
+<style name="WidgetFontCasual" parent="@android:style/TextAppearance.Material"><item name="android:fontFamily">casual</item><item name="android:textSize">16sp</item></style>
+<style name="WidgetFontCursive" parent="@android:style/TextAppearance.Material"><item name="android:fontFamily">cursive</item><item name="android:textSize">16sp</item></style>
+</resources>
